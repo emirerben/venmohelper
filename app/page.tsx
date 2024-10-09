@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,10 +19,18 @@ interface Item {
 interface Person {
   id: number;
   name: string;
+  venmoHandle: string;
   items: Item[];
 }
 
-const FocusedInput = ({ value, onChange, placeholder, type = "text" }) => {
+interface FocusedInputProps {
+  value: string;
+  onChange: (event: ChangeEvent<HTMLInputElement>) => void;
+  placeholder: string;
+  type?: string;
+}
+
+const FocusedInput: React.FC<FocusedInputProps> = ({ value, onChange, placeholder, type = "text" }) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -52,7 +60,12 @@ export default function Home() {
 
   const addPerson = () => {
     if (newPersonName.trim()) {
-      setPeople([...people, { id: Date.now(), name: newPersonName.trim(), items: [] }]);
+      setPeople([...people, {
+        id: Date.now(),
+        name: newPersonName.trim(),
+        items: [],
+        venmoHandle: '' // Add this line
+      }]);
       setNewPersonName('');
     }
   };
@@ -95,50 +108,83 @@ export default function Home() {
     }, 0).toFixed(2);
   };
 
-  const PeopleScreen = () => (
-    <>
-      <Card className="mb-6 bg-gray-800 border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center">
-            <Users className="mr-2" /> Add New Person
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex space-x-2">
-            <FocusedInput
-              placeholder="Enter name"
-              value={newPersonName}
-              onChange={(e) => setNewPersonName(e.target.value)}
-            />
-            <Button onClick={addPerson} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="mr-2 h-4 w-4" /> Add
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+  const PeopleScreen = () => {
+    const [newPersonName, setNewPersonName] = useState('');
+    const [newPersonVenmo, setNewPersonVenmo] = useState('');
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {people.map(person => (
-          <Card key={person.id} className="mb-4 bg-gray-800 border-gray-700">
-            <CardHeader>
-              <CardTitle className="text-white flex justify-between items-center">
-                <span>{person.name}</span>
-                <Button variant="destructive" size="icon" onClick={() => removePerson(person.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </CardTitle>
-            </CardHeader>
-          </Card>
-        ))}
-      </div>
+    const addPerson = () => {
+      if (newPersonName.trim()) {
+        setPeople([...people, { 
+          id: Date.now(), 
+          name: newPersonName.trim(), 
+          venmoHandle: newPersonVenmo.trim(),
+          items: [] 
+        }]);
+        setNewPersonName('');
+        setNewPersonVenmo('');
+      }
+    };
 
-      {people.length > 0 && (
-        <Button className="mt-4 bg-green-600 hover:bg-green-700" onClick={() => setScreen('items')}>
-          Next: Add Items <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      )}
-    </>
-  );
+    return (
+      <>
+        <Card className="mb-6 bg-gray-800 border-gray-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <Users className="mr-2" /> Add New Person
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="personName" className="text-white mb-2 block">Name</Label>
+                <Input
+                  id="personName"
+                  placeholder="Enter name"
+                  value={newPersonName}
+                  onChange={(e) => setNewPersonName(e.target.value)}
+                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                />
+              </div>
+              <div>
+                <Label htmlFor="personVenmo" className="text-white mb-2 block">Venmo Handle</Label>
+                <Input
+                  id="personVenmo"
+                  placeholder="Enter Venmo handle"
+                  value={newPersonVenmo}
+                  onChange={(e) => setNewPersonVenmo(e.target.value)}
+                  className="bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                />
+              </div>
+              <Button onClick={addPerson} className="w-full bg-blue-600 hover:bg-blue-700">
+                <Plus className="mr-2 h-4 w-4" /> Add Person
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {people.map(person => (
+            <Card key={person.id} className="mb-4 bg-gray-800 border-gray-700">
+              <CardHeader>
+                <CardTitle className="text-white flex justify-between items-center">
+                  <span>{person.name}</span>
+                  <Button variant="destructive" size="icon" onClick={() => removePerson(person.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+            </Card>
+          ))}
+        </div>
+
+        {people.length > 0 && (
+          <Button className="mt-4 bg-green-600 hover:bg-green-700" onClick={() => setScreen('items')}>
+            Next: Add Items <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        )}
+      </>
+    );
+  };
 
   const ItemsScreen = () => {
     const [localItemName, setLocalItemName] = useState('');
@@ -203,6 +249,11 @@ export default function Home() {
       return Math.min(baseHeight + itemCount * itemHeight, maxHeight);
     };
 
+    const initiateVenmoPayment = (person: Person, amount: number) => {
+      const venmoUrl = `venmo://paycharge?txn=pay&recipients=${person.venmoHandle}&amount=${amount}&note=Expense Harmony payment`;
+      window.location.href = venmoUrl;
+    };
+
     return (
       <>
         <Card className="mb-8 bg-gray-800 border-gray-700 shadow-lg">
@@ -264,13 +315,14 @@ export default function Home() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {people.map(person => {
             const cardHeight = getCardHeight(person.items.length);
+            const totalAmount = calculateTotal(person.items, person.id);
             return (
               <Card key={person.id} className="bg-gray-800 border-gray-700 shadow-lg transition-all duration-300 ease-in-out overflow-hidden" style={{ height: `${cardHeight}px` }}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-white text-xl">{person.name}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ScrollArea className="pr-4" style={{ height: `${cardHeight - 130}px` }}>
+                  <ScrollArea className="pr-4" style={{ height: `${cardHeight - 180}px` }}>
                     {person.items.map(item => (
                       <div key={item.id} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-b-0">
                         <span className="text-white">{item.name} - ${(item.price / item.sharedWith.length).toFixed(2)}</span>
@@ -282,8 +334,14 @@ export default function Home() {
                   </ScrollArea>
                   <div className="mt-4 pt-3 border-t border-gray-700 flex justify-between items-center font-bold text-white">
                     <span>Total:</span>
-                    <span>${calculateTotal(person.items, person.id)}</span>
+                    <span>${totalAmount}</span>
                   </div>
+                  <Button 
+                    className="w-full mt-4 bg-blue-600 hover:bg-green-500"
+                    onClick={() => initiateVenmoPayment(person, parseFloat(totalAmount))}
+                  >
+                    <DollarSign className="mr-2 h-4 w-4" /> Pay with Venmo
+                  </Button>
                 </CardContent>
               </Card>
             );
